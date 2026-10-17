@@ -21,6 +21,7 @@ main{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:
 .msg{max-width:92%;padding:10px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);word-wrap:break-word}
 .me{align-self:flex-end;background:var(--me);border-color:transparent}
 .me img{max-width:160px;border-radius:8px;display:block;margin-bottom:4px}
+audio.voice{display:block;width:240px;max-width:100%;height:40px;margin:6px 0}
 .meta{font-size:12px;color:var(--muted);margin-top:6px}
 .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .acts button{font-size:14px;padding:6px 10px;border-radius:99px;border:1px solid var(--line);background:var(--bg)}
@@ -79,7 +80,7 @@ const store = {get(k){try{return localStorage.getItem(k)}catch{return null}}, se
 // ---- UI language follows the device: Malay first on Malay phones, English first elsewhere ----
 const MS = /^(ms|id)\b/i.test(navigator.language || "");
 const S = {
-  snap:["Ambil Gambar","Snap"], upload:["Muat Naik","Upload"], talk:["Cakap","Talk"], stop:["Berhenti","Stop & send"],
+  snap:["Ambil Gambar","Snap"], upload:["Muat Naik","Upload"], talk:["Cakap","Talk"], stop:["Berhenti","Stop & send"], stopAudio:["Berhenti","Stop"],
   note:["Jangan kongsi maklumat peribadi. Nombor IC, telefon dan emel disorok sebelum dihantar.","Don't share personal info. IC, phone numbers and emails are hidden before sending."],
   send:["Hantar","Send"], clear:["Buang","Remove"], jimat:["Jimat Data","Save Data"], on:["ON","ON"],
   ph:["Taip soalan kitak...","Type your question..."], hello:["Selamat datang!","Welcome!"],
@@ -164,7 +165,12 @@ function speakLang(text, language){
   if (/malay|melayu|iban|sarawak/.test(l) || /\b(yang|dan|ialah|adalah|ini|untuk|kita)\b/i.test(text)) return "ms-MY";
   return "en-US";
 }
-async function speak(text, language, btn){
+// Replay like WhatsApp: Full mode keeps the downloaded Gemini voice as a player under the answer (replays cost 0 KB);
+// the phone's own voice has no file, so the button toggles play/stop instead.
+async function speak(text, language, btn, msg, labels){
+  const saved = msg.querySelector("audio.voice");
+  if (saved) { saved.currentTime = 0; saved.play(); return; }
+  if (btn.dataset.speaking) { speechSynthesis.cancel(); return; }
   speechSynthesis.cancel();
   const plain = text.replace(/[*#_`]/g, "");
   if (mode() === "full") {
@@ -173,11 +179,16 @@ async function speak(text, language, btn){
       const r = await fetch("/api/tts", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text:plain})});
       if (!r.ok) throw 0;
       const blob = await r.blob(); addBytes(blob.size);
-      new Audio(URL.createObjectURL(blob)).play(); return;
+      const player = document.createElement("audio");
+      player.className = "voice"; player.controls = true; player.src = URL.createObjectURL(blob);
+      msg.querySelector(".acts").before(player); player.play(); return;
     } catch {} finally { btn.disabled = false; }
   }
   const u = new SpeechSynthesisUtterance(plain), lang = speakLang(plain, language);
   u.lang = lang; u.voice = speechSynthesis.getVoices().find(v => v.lang.replace("_","-").startsWith(lang.slice(0,2))) || null;
+  const reset = () => { delete btn.dataset.speaking; btn.textContent = labels.play; };
+  u.onend = u.onerror = reset;
+  btn.dataset.speaking = "1"; btn.textContent = labels.stop;
   speechSynthesis.speak(u);
 }
 function addBytes(n){ totalBytes += n; $("data").textContent = kb(totalBytes); }
@@ -219,7 +230,8 @@ async function ask(action=""){
   if (audio) { fd.append("audio", audio, "voice." + (audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm")); up += audio.size; }
 
   const labels = {simpler:t("simpler"), local:t("local"), quiz:t("quiz")};
-  add("me", (image ? `<img src="${URL.createObjectURL(image)}" alt="">` : "") + (audio ? `🎤 ${t("voice")}<br>` : "") + esc(text || labels[action] || ""));
+  // The student's own voice note stays on the phone, so replaying it costs no data
+  add("me", (image ? `<img src="${URL.createObjectURL(image)}" alt="">` : "") + (audio ? `<audio class="voice" controls src="${URL.createObjectURL(audio)}" aria-label="${t("voice")}"></audio>` : "") + esc(text || labels[action] || ""));
   $("text").value = ""; clearAttach();
   const wait = add("", t("think"));
   $("send").disabled = true;
@@ -235,7 +247,7 @@ async function ask(action=""){
     const q = d.question || text || labels[action] || "";
     // Follow-up buttons match the answer's language: a Malay answer gets Malay buttons
     const L = k => speakLang(d.answer, d.language) === "ms-MY" ? S[k][0] : t(k);
-    [["🔊 " + L("listen"), b => speak(d.answer, d.language, b)], ["🖼️ " + L("draw"), b => draw(q, d.answer, wait, b)],
+    [["🔊 " + L("listen"), b => speak(d.answer, d.language, b, wait, {play:"🔊 " + L("listen"), stop:"⏹ " + L("stopAudio")})], ["🖼️ " + L("draw"), b => draw(q, d.answer, wait, b)],
      ["💡 " + L("simpler"), () => ask("simpler")], ["🌾 " + L("local"), () => ask("local")], ["❓ " + L("quiz"), () => ask("quiz")]]
       .forEach(([t, fn]) => { const b = document.createElement("button"); b.textContent = t; b.onclick = () => fn(b); acts.append(b); });
     wait.append(acts);
