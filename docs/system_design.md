@@ -13,26 +13,27 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- Accept photo, voice and text questions
 	- Answer in the student's language at the student's level with local examples
 	- Spend as few bytes as possible per answer
+	- Keep children's personal data off the wire
 - Constraints
 	- Built and deployed in 90 minutes
 	- No accounts and no database, history and level live in the browser only
-	- One page under 50 KB with no frontend framework
+	- One page under 20 KB (about 18 KB measured) with no frontend framework
 
 
 ## Repository structure
 
-- `app/main.py` routes
-- `app/providers.py` model calls and fallback
-- `app/prompts.py` tutor prompt
+- `app/main.py` routes, rate limit and server side redaction
+- `app/providers.py` model calls, fallback, SVG diagrams and TTS
+- `app/prompts.py` tutor, perceive and draw prompts
 - `app/static/index.html` UI with inline CSS and JS
-- `requirements.txt`, `Dockerfile` (installs ffmpeg), `.env.example`
+- `requirements.txt`, `Dockerfile`, `.env.example`
 
 
 ## Deployment
 
 - Single Cloud Run service in asia southeast1 (Singapore, closest to Sarawak)
 - FastAPI serves both the page and the API
-- The Docker image includes ffmpeg for voice conversion
+- Voice conversion uses the ffmpeg binary bundled with the imageio ffmpeg Python package, so the image needs no system ffmpeg
 
 
 ## Pipeline
@@ -42,6 +43,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 		- `navigator.connection` saveData and effectiveType where available
 		- `/api/ping` round trip as fallback since iOS lacks `navigator.connection`
 		- Jimat Data toggle forces Lite
+	- Redacts personal data in the typed text, see Safety and privacy
 	- Compresses photos with canvas
 	- Records voice with MediaRecorder at a low opus bitrate
 		- webm on Android Chrome
@@ -50,6 +52,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 2. Perceive (Gemini 3.8 Flash)
 	- Runs only when a photo or voice note is attached
 	- Turns the image or audio into clean question text and a detected language
+	- Replaces personal details found in the photo or voice with [REDACTED]
 	- Voice notes are first converted on the server to low bitrate mono MP3 with ffmpeg
 		- Gemini supports MP3 but not webm
 	- Text only questions skip this step to save time
@@ -57,11 +60,26 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- Answers in the student's language, including code switching
 	- Pitched to the level and the KSSR or KSSM syllabus
 	- Uses Sarawak examples such as padi, longhouses, the Rajang River, the Bakun dam, kek lapis and pepper farms
+	- Teaches in three beats, key idea, steps and a one line check question, with labels written in the reply language
 	- Answer length shaped by mode
-4. Output Shaper and speech
+	- Knows it cannot draw, the app draws separately
+	- Child safe, see Safety and privacy
+4. Follow ups
+	- Senangkan, Contoh Tempatan and Kuiz Saya call `/api/ask` again with an `action`
+	- The prompt for each action is written in English, so the server adds a language rule right next to the question
+		- Reply in the language of the detected input, or in the language of the previous answer and earlier messages
+		- Without it, replies drift back into English
+5. Draw (Gemini 3.8 Flash, thinking level low)
+	- Triggered by the Lukis button, or automatically when the student's message contains gambar, lukis, rajah, diagram, draw or picture
+	- Writes one step by step SVG diagram with the real numbers and labels in the student's language
+		- Usually 4 to 6 KB, so it works even in Lite mode
+		- Takes about 15 seconds
+	- The server strips scripts, foreignObject, event handler attributes and external links
+	- The page shows the SVG through an img element, where scripts never run
+6. Output Shaper and speech
 	- Lite and Standard read aloud with the phone's own voice through speechSynthesis at zero data cost
 	- Full uses Gemini 3.8 Flash TTS
-	- Data meter shows KB uploaded plus downloaded for every answer
+	- Data meter shows KB uploaded plus downloaded for every answer and diagram
 
 
 ## Bandwidth tiers
@@ -81,6 +99,10 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- Voice 24 kbps
 	- Answers about 350 words
 	- Gemini 3.8 Flash TTS
+- Measured
+	- A typical Lite answer is about 600 bytes to 1.2 KB
+	- A 3 second voice note at 12 kbps is about 6 KB
+	- The whole page is about 18 KB
 
 
 ## Level adaptation
@@ -101,27 +123,64 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 ## Language handling
 
 - The tutor replies in the language the student used, including mixed Bahasa Melayu and English
+- Follow up replies stay in the language of the conversation, not English
 - Button labels follow the device language
 	- Malay devices show Malay first with English underneath
 	- Other devices show English first with Malay underneath
-	- Every button keeps its icon
+	- Every big button keeps its icon
+- Follow up button labels follow the language of the answer, so a Malay answer gets Malay buttons on any device
 - Bahasa Melayu, English and Mandarin are well supported
 - Sarawak Malay is best effort today
 
 
 ## User interface
 
-- One screen
-- Three big buttons with icons Ambil Gambar (Snap), Cakap (Talk) and Taip (Type)
+- One screen with the chat, level chips and a text box that is always visible
+- Three big buttons with icons
+	- Ambil Gambar (Snap) always opens the camera
+	- Muat Naik (Upload) always opens the gallery
+	- Cakap (Talk) records a voice note and sends it when tapped again
 	- Label order follows the device language, see Language handling
-- One tap follow ups Lebih Mudah (Simpler), Contoh Tempatan (Local example) and Kuiz Saya (Quiz me)
-- Play button on each answer
+- On a laptop, images can also be pasted or dragged and dropped into the text box
+- Follow ups on every answer
+	- Dengar (Listen)
+	- Lukis (Draw)
+	- Senangkan (Simpler)
+	- Contoh Tempatan (Local Example)
+	- Kuiz Saya (Quiz Me)
+- Answer formatting
+	- HTML is escaped first, then bold and headings are rendered
+	- Bullets render as dots and code formatting is removed
+- A note under the buttons reminds students not to share personal information
 - Inspired by NotebookLM, a photo of the student's own textbook page becomes the lesson source and Kuiz Saya generates questions from it
+
+
+## Safety and privacy
+
+- Personal data redaction
+	- Runs on the phone before anything is sent, and again on the server for clients that skip the browser
+	- IC numbers become [IC]
+	- Malaysian mobile and landline numbers, including Sarawak 082 numbers, become [TELEFON]
+	- Emails become [EMEL]
+	- Card numbers become [KAD]
+	- Maths numbers are untouched
+	- Applies to typed text and to the history sent with each request
+- Photos and voice cannot be redacted on the phone, so the Gemini perceive prompt replaces personal details with [REDACTED]
+- The tutor prompt is child safe
+	- Keeps everything age appropriate and refuses anything harmful, sexual or dangerous
+	- Never asks for personal details and reminds students kindly not to share them
+	- On bullying, abuse, self harm or feeling unsafe, responds with care, points to a trusted teacher or parent and gives Talian Kasih 15999
+- Abuse limits
+	- Per IP rate limit of 30 requests a minute on the API, `/api/ping` excluded, kept in memory
+	- Uploads capped at 4 MB
+	- Only the last 8 turns of history are sent
+- Answers are HTML escaped before display
+- Nothing is stored on a server, there is no database
 
 
 ## Model routing
 
-- Perceive uses Gemini 3.8 Flash
+- Perceive and draw use Gemini 3.8 Flash
 	- Natively multimodal, reads image or audio and text in one call
 - Tutor uses ILMU through an OpenAI compatible API
 	- Malaysian LLM by YTL AI Labs, tuned for Malaysian languages
@@ -138,9 +197,14 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - `GET /` serves the page
 - `GET /api/ping` latency probe
 - `POST /api/ask` multipart form
-	- Fields `text`, optional `image` file, optional `audio` file, `level`, `mode` (lite, standard, full), `action` (simpler, local, quiz), `history` JSON of the last turns
-	- Returns JSON with `answer`, `provider`, `level`, `language`, `question`
+	- Fields `text`, optional `image` file, optional `audio` file, `level`, `mode` (lite, standard, full), `action` (simpler, local, quiz), `history` JSON of the last 8 turns
+	- Returns JSON with `answer`, `provider`, `language` and `question` (the transcribed question, only for photo or voice input)
+- `POST /api/draw` JSON with `question` and `answer`, returns JSON with `svg`
 - `POST /api/tts` returns WAV audio from Gemini 3.8 Flash TTS, used only in Full mode
+- Errors
+	- 413 for files over 4 MB
+	- 429 when the rate limit is hit
+	- 502 when every provider fails
 
 
 ## Environment variables
@@ -159,6 +223,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- `QWEN_MODEL`
 - Routing
 	- `TUTOR_ORDER`
+	- `MAX_TOKENS` caps tutor output, default 1500
 
 
 ## Deploy
@@ -174,15 +239,21 @@ gcloud run deploy ajarlok \
 
 ## Risks
 
-- Gemini supports MP3 but not webm, so voice notes depend on the ffmpeg conversion working in the Docker image
+- Inputs are processed by third party model providers (Google, YTL AI Labs ILMU, SovernStack)
+	- Redaction lowers the risk but is pattern based and cannot catch every detail, such as a name in a photo
+	- A paid Gemini key keeps inputs out of Google product improvement
+- Gemini supports MP3 but not webm, so voice notes depend on the ffmpeg conversion working
 - A Malay speechSynthesis voice is not on every phone, so the app falls back to an English voice or Full mode
 - ILMU endpoint must follow the OpenAI compatible format, Qwen must match the SovernStack API
+- Diagrams come from a model and can contain mistakes, the student can ask for another
+- The in memory rate limit resets on restart and is per instance
 
 
 ## Roadmap
 
 - Telegram bot reusing `/api/ask`
-- Tiny SVG diagrams in Full mode
+- The tutor model deciding by itself when to draw
 - Two voice audio recap like NotebookLM
 - Offline PWA shell
-- Better Sarawak Malay support
+- Better Sarawak Malay and Iban support
+- ILMU vision and TTS models as Malaysian alternatives

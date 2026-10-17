@@ -20,22 +20,31 @@ Every AI tutor out there assumes fast WiFi, a new phone, fluent English and a lo
 
 AjarLok ("ajar" means teach, "lok" is Sarawak Malay slang) adapts to the student instead of the other way round.
 
-- Three ways in
-	- Ambil Gambar to photograph a textbook question
-	- Cakap to ask out loud
-	- Taip to type
+- Three big buttons
+	- Ambil Gambar (Snap) always opens the camera
+	- Muat Naik (Upload) always opens the gallery
+	- Cakap (Talk) records a voice question
+- A text box that is always visible, where images can also be pasted or dragged and dropped on a laptop
 - Answers in the student's own language, including mixed Bahasa Melayu and English
 - Button labels follow the device language
 	- Malay devices show Malay first with English underneath
 	- Other devices show English first with Malay underneath
 - Pitched to the student's level, from Darjah 1 to university, by simply saying "saya darjah 5" or "I am 15"
 - Local examples such as padi fields, longhouses, the Bakun dam and kek lapis
+- One tap follow ups on every answer, labelled in the language of the answer
+	- Dengar (Listen)
+	- Lukis (Draw) makes a small step by step SVG diagram, also drawn automatically when the student asks for one
+	- Senangkan (Simpler)
+	- Contoh Tempatan (Local Example)
+	- Kuiz Saya (Quiz Me)
 - Jimat Data mode
 	- Detects a weak connection
 	- Shrinks photos and voice on the phone before upload
 	- Sends short text answers read aloud by the phone's own voice at zero data cost
 	- Shows how much data every answer used
-- One tap follow ups Lebih Mudah, Contoh Tempatan and Kuiz Saya
+- Safe for children
+	- IC numbers, phone numbers, emails and card numbers are hidden on the phone before sending
+	- The tutor never asks for personal details and points to Talian Kasih 15999 when a student is in distress
 - No account, no install, just a link
 
 
@@ -61,15 +70,16 @@ AjarLok
 
 ### Brief Description
 
-AjarLok is a lightweight, voice first STEM and IT tutor for students in rural Sarawak and anyone learning outside their first language. Students snap a photo of a textbook question, record a voice question or type, in Bahasa Melayu, Sarawak Malay, English, Mandarin or a mix of them. They get an explanation pitched at their level, from Darjah 1 to university, using local examples like padi fields, longhouses and the Rajang River. It is built for cheap phones and weak signals. The app checks the connection, compresses photos and voice on the phone before upload, keeps answers as short as needed and reads them aloud with the phone's own voice so audio costs no data. There is no account and nothing to install. Gemini 3.8 Flash reads photos and voice notes, ILMU, a Malaysian language model by YTL AI Labs, writes the answer, and Qwen 27B from SovernStack and Gemini stand by as fallbacks. It runs on Google Cloud Run in Singapore, close to Sarawak.
+AjarLok is a STEM and IT tutor built for the student AI forgot. Picture a Form 2 student in a Sarawak longhouse with one bar of signal, RM10 of prepaid data and a textbook that is not in their home language. With AjarLok they snap a photo of the question, say it out loud or type it, in Bahasa Melayu, Sarawak Malay, English, Mandarin or a mix. AjarLok answers in the same language, pitched at their level from Darjah 1 to university, using things they know like kek lapis, padi fields and the Rajang River. It runs in any phone browser with no account and no install. The whole app is under 20 KB, a typical answer costs less than 1 KB and answers are read aloud with the phone's own voice at zero data cost. Gemini 3.8 Flash understands photos and voice, ILMU, the Malaysian language model by YTL AI Labs, writes the lesson, and Qwen 27B and Gemini stand by as fallbacks. Hosted on Google Cloud Run in Singapore, close to Sarawak.
 
 ### Uniqueness
 
-1. Bandwidth aware by design. An Input Gate on the phone picks a Lite, Standard or Full mode from the live connection, shrinks images and audio before upload and shapes the reply to match. Every answer shows how much data it used.
-2. Local, not just translated. Answers follow the student's language and code switching, are pitched to Malaysian KSSR and KSSM levels, and explain with Sarawak examples. The tutor model is ILMU, built for Malaysian languages.
-3. Level adaptive without accounts. A student states their age or school year once and every answer adjusts. Nothing is stored on a server.
-4. Built for first time users. One screen, three big buttons and one tap follow ups mean students rarely need to type.
-5. Inspired by NotebookLM. A photo of the student's own textbook page becomes the lesson source, and Kuiz Saya turns it into practice questions.
+1. Built around data cost. The phone checks the connection, picks Lite, Standard or Full mode, shrinks photos and records low bitrate voice before upload. Every answer shows its KB used and diagrams are 5 KB SVG.
+2. Local, not just translated. ILMU, a Malaysian model, replies in the student's language and code switching, follows KSSR and KSSM and explains with Sarawak life, not Western examples.
+3. Adapts to age, no account. Saying "saya 12 tahun" or "Form 4" once adjusts every answer. Nothing is stored on a server.
+4. Safe by default. IC numbers, phone numbers and emails are hidden on the phone before sending, and the child safe tutor gives Talian Kasih 15999 to students in distress.
+5. Made for first time users. Big Snap, Upload and Talk buttons in the phone's language and one tap follow ups like Senangkan and Kuiz Saya, so students rarely type.
+6. Inspired by NotebookLM. A photo of the student's own textbook page becomes the lesson, and Kuiz Saya makes practice questions.
 
 ### Deployed Project Link
 
