@@ -1,13 +1,16 @@
 import json
 import logging
+import re
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile  # noqa: E402
-from fastapi.responses import FileResponse, Response  # noqa: E402
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
+from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from . import providers  # noqa: E402
@@ -18,6 +21,39 @@ STATIC = Path(__file__).parent / "static"
 MAX_UPLOAD = 4 * 1024 * 1024
 
 app = FastAPI(title="AjarLok")
+
+# Same patterns as scrub() in the page, for clients that skip the browser.
+PII = [
+    (re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "[EMEL]"),
+    (re.compile(r"\b(?:\d[ -]?){15,18}\d\b"), "[KAD]"),
+    (re.compile(r"\b\d{6}[- ]?\d{2}[- ]?\d{4}\b"), "[IC]"),
+    (re.compile(r"(?:\+?60|\b0)1\d[- ]?\d{3,4}[- ]?\d{4}\b"), "[TELEFON]"),
+    (re.compile(r"(?:\+?60|\b0)[3-9]\d?[- ]?\d{3,4}[- ]?\d{3,4}\b"), "[TELEFON]"),
+]
+
+
+def scrub(s: str) -> str:
+    for pattern, tag in PII:
+        s = pattern.sub(tag, s)
+    return s
+
+
+# Simple per-IP limit so a script can't run up the model bill. In-memory is fine for one small instance.
+RATE_LIMIT, RATE_WINDOW = 30, 60
+_hits: dict[str, deque] = defaultdict(deque)
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    if request.url.path.startswith("/api/") and request.url.path != "/api/ping":
+        ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+        now, hits = time.time(), _hits[ip]
+        while hits and hits[0] < now - RATE_WINDOW:
+            hits.popleft()
+        if len(hits) >= RATE_LIMIT:
+            return JSONResponse({"detail": "Terlalu banyak soalan. Tunggu sekejap. / Too many requests, please wait a minute."}, 429)
+        hits.append(now)
+    return await call_next(request)
 
 
 @app.get("/")
@@ -53,15 +89,15 @@ async def ask(
 ):
     img, aud = await _read(image), await _read(audio)
     try:
-        hist = json.loads(history)[-8:]
+        hist = [{**t, "content": scrub(str(t.get("content", "")))} for t in json.loads(history)[-8:] if isinstance(t, dict)]
     except json.JSONDecodeError:
         hist = []
 
-    question, language = text.strip(), ""
+    question, language = scrub(text.strip()), ""
     if img or aud:
         try:
             p = providers.perceive(question, img, aud)
-            question, language = p["question"], p["language"]
+            question, language = scrub(p["question"]), p["language"]
         except Exception as e:
             logging.exception("perceive failed")
             if not question:

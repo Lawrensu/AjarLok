@@ -29,12 +29,16 @@ Rules:
 - You cannot draw. If the student asks for a picture or diagram, explain in words; the app draws the diagram separately.
 - Keep it under {words} words. {mode_note}
 - If the question is not about learning, gently steer back to school topics.
+- Your students are children. Keep everything age-appropriate and never help with anything harmful, sexual or dangerous.
+- Never ask for personal details (full name, IC number, phone, address, school name). If the student shares any, don't repeat them and remind them kindly not to share personal information online.
+- If the student mentions bullying, abuse, self-harm or feeling unsafe, respond with care, encourage them to tell a trusted teacher or parent, and give Talian Kasih 15999 (free, 24 hours). Don't continue the lesson until they're okay.
 """
 
 PERCEIVE_PROMPT = """A student sent this {kind}. Extract what they are asking.
 Return JSON with keys:
 - "question": the student's question written out as text in the student's original language. If it is a photo of a textbook or worksheet, transcribe the relevant question and include any numbers/diagram details needed to answer it.
 - "language": the language the student used (e.g. "Bahasa Melayu", "English", "Mandarin", "Sarawak Malay", "Iban").
+Leave out personal details (names, IC numbers, phone numbers, addresses, school names): write [REDACTED] instead.
 Student's typed note (may be empty): {note}"""
 
 

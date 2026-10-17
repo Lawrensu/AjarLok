@@ -34,6 +34,8 @@ footer{border-top:1px solid var(--line);background:var(--card);padding:10px 12px
 textarea{flex:1;font:inherit;padding:10px;border-radius:12px;border:1px solid var(--line);resize:none;height:48px}
 #send{padding:0 18px;border:0;border-radius:12px;background:var(--brand);color:#fff;font:inherit;font-weight:600}
 .big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+textarea.drop{outline:2px dashed var(--brand2)}
+.note{margin:6px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .big button{border:0;border-radius:14px;padding:10px 4px;background:var(--brand2);color:#fff;font:inherit;font-weight:600;line-height:1.2}
 .big button span{display:block;font-size:26px}
 .big button small{display:block;font-weight:400;font-size:12px;opacity:.85}
@@ -61,10 +63,12 @@ button:disabled{opacity:.5}
   </div>
   <div class="big">
     <button id="snap"></button>
+    <button id="upload"></button>
     <button id="talk"></button>
-    <button id="type"></button>
   </div>
+  <p class="note" id="note"></p>
   <input type="file" id="file" accept="image/*" capture="environment" hidden>
+  <input type="file" id="gallery" accept="image/*" hidden>
 </footer>
 <script>
 const $ = id => document.getElementById(id);
@@ -75,7 +79,8 @@ const store = {get(k){try{return localStorage.getItem(k)}catch{return null}}, se
 // ---- UI language follows the device: Malay first on Malay phones, English first elsewhere ----
 const MS = /^(ms|id)\b/i.test(navigator.language || "");
 const S = {
-  snap:["Ambil Gambar","Snap"], talk:["Cakap","Talk"], type:["Taip","Type"], stop:["Berhenti","Stop & send"],
+  snap:["Ambil Gambar","Snap"], upload:["Muat Naik","Upload"], talk:["Cakap","Talk"], stop:["Berhenti","Stop & send"],
+  note:["Jangan kongsi maklumat peribadi. Nombor IC, telefon dan emel disorok sebelum dihantar.","Don't share personal info. IC, phone numbers and emails are hidden before sending."],
   send:["Hantar","Send"], clear:["Buang","Remove"], jimat:["Jimat Data","Save Data"], on:["ON","ON"],
   ph:["Taip soalan kitak...","Type your question..."], hello:["Selamat datang!","Welcome!"],
   hello2:["Ambil gambar soalan, cakap, atau taip. Bahasa apa pun boleh.","Snap a question, speak, or type. Any language is fine."],
@@ -89,7 +94,7 @@ const WANTS_DRAWING = /gambar|lukis|rajah|diagram|draw|picture|visual|sketch|图
 const t = k => S[k][MS ? 0 : 1], t2 = k => S[k][MS ? 1 : 0];
 const bigBtn = (icon, k) => `<span>${icon}</span>${t(k)}<small>${t2(k)}</small>`;
 function renderText(){
-  $("snap").innerHTML = bigBtn("📷","snap"); $("talk").innerHTML = bigBtn("🎤","talk"); $("type").innerHTML = bigBtn("⌨️","type");
+  $("snap").innerHTML = bigBtn("📷","snap"); $("upload").innerHTML = bigBtn("🖼️","upload"); $("talk").innerHTML = bigBtn("🎤","talk"); $("note").textContent = "🔒 " + t("note");
   $("send").textContent = t("send"); $("clear").textContent = t("clear"); $("text").placeholder = `${t("ph")} / ${t2("ph")}`;
   const h = $("hello"); if (h) h.innerHTML = `<b>${t("hello")}</b><br>${t("hello2")}<br><small>${t2("hello2")}</small>`;
   document.documentElement.lang = MS ? "ms" : "en";
@@ -191,9 +196,19 @@ async function draw(question, answer, msg, btn){
   } catch (e) { box.textContent = t("drawErr"); if (btn) btn.disabled = false; }
 }
 
+// ---- Privacy: personal data is replaced on the phone, before anything is sent ----
+function scrub(s){
+  return s
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[EMEL]")
+    .replace(/\b(?:\d[ -]?){15,18}\d\b/g, "[KAD]")
+    .replace(/\b\d{6}[- ]?\d{2}[- ]?\d{4}\b/g, "[IC]")
+    .replace(/(?:\+?60|\b0)1\d[- ]?\d{3,4}[- ]?\d{4}\b/g, "[TELEFON]")
+    .replace(/(?:\+?60|\b0)[3-9]\d?[- ]?\d{3,4}[- ]?\d{3,4}\b/g, "[TELEFON]");
+}
+
 // ---- Ask ----
 async function ask(action=""){
-  const text = $("text").value.trim();
+  const text = scrub($("text").value.trim());
   if (!text && !image && !audio && !action) return;
   const lv = detectLevel(text); if (lv) setLevel(lv);
   const fd = new FormData(), m = mode();
@@ -230,14 +245,22 @@ async function ask(action=""){
   } finally { $("send").disabled = false; }
 }
 
-function clearAttach(){ image = audio = null; $("attach").style.display = "none"; $("file").value = ""; }
+function clearAttach(){ image = audio = null; $("attach").style.display = "none"; $("file").value = $("gallery").value = ""; }
 function showAttach(label, src){ $("attach").style.display = "flex"; $("attname").textContent = label; $("thumb").style.display = src ? "" : "none"; if (src) $("thumb").src = src; }
 
-$("file").onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
+async function attachImage(f){
+  if (!f || !f.type.startsWith("image/")) return;
   try { image = await compress(f, TIERS[mode()]); } catch { image = f; }
   showAttach(`${t("photo")} ${kb(f.size)} → ${kb(image.size)}`, URL.createObjectURL(image));
-};
+}
+// Snap forces the camera, Upload opens the gallery; paste and drag-drop also work in the text box
+$("file").onchange = e => attachImage(e.target.files[0]);
+$("gallery").onchange = e => attachImage(e.target.files[0]);
+$("upload").onclick = () => $("gallery").click();
+$("text").addEventListener("paste", e => { const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith("image/")); if (f) { e.preventDefault(); attachImage(f); } });
+$("text").addEventListener("dragover", e => { e.preventDefault(); $("text").classList.add("drop"); });
+$("text").addEventListener("dragleave", () => $("text").classList.remove("drop"));
+$("text").addEventListener("drop", e => { e.preventDefault(); $("text").classList.remove("drop"); attachImage(e.dataTransfer.files[0]); });
 $("talk").onclick = async () => {
   if (recorder) { recorder.stop(); return; }
   try {
@@ -256,7 +279,6 @@ $("talk").onclick = async () => {
   } catch { alert(t("mic")); }
 };
 $("snap").onclick = () => $("file").click();
-$("type").onclick = () => $("text").focus();
 $("send").onclick = () => ask();
 $("clear").onclick = clearAttach;
 $("text").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } };
