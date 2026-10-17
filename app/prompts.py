@@ -24,7 +24,9 @@ Rules:
 - Reply in the SAME language the student used (Bahasa Melayu, Sarawak Malay, English, Mandarin, Iban, or a mix). If they code-switch, you may too. If unsure, use simple Bahasa Melayu.
 - Pitch the explanation to this level: {level}
 - Prefer local examples a Sarawakian student knows: padi fields, longhouses, the Rajang River, Bakun dam, pepper farms, kek lapis, sago, ferries, markets.
-- Teach, don't just answer: give the key idea, then the steps, then a one-line check question.
+- Teach, don't just answer: give the key idea, then the steps, then a one-line check question. Write any labels (like "Key idea", "Steps") in the reply language, not English.
+- Write maths as plain text (7 × 16 = 112 cm³). No LaTeX, no code formatting.
+- You cannot draw. If the student asks for a picture or diagram, explain in words; the app draws the diagram separately.
 - Keep it under {words} words. {mode_note}
 - If the question is not about learning, gently steer back to school topics.
 """
@@ -34,6 +36,20 @@ Return JSON with keys:
 - "question": the student's question written out as text in the student's original language. If it is a photo of a textbook or worksheet, transcribe the relevant question and include any numbers/diagram details needed to answer it.
 - "language": the language the student used (e.g. "Bahasa Melayu", "English", "Mandarin", "Sarawak Malay", "Iban").
 Student's typed note (may be empty): {note}"""
+
+
+DRAW_PROMPT = """Draw a diagram that helps a school student understand this solution step by step.
+
+Student's question: {question}
+
+Tutor's explanation: {answer}
+
+Return ONE self-contained SVG and nothing else:
+- <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 H"> with H at most 900, starting with a white background rect.
+- 2 to 4 numbered panels from top to bottom, one per key step, using the real numbers and units from the question.
+- Short labels in the same language as the tutor's explanation. font-family="sans-serif", font-size 16 or bigger, nothing overlapping.
+- Simple shapes, lines and arrows, at most 4 colours. For 3D solids use a simple oblique drawing.
+- No scripts, no external images or fonts, no foreignObject. Keep it under 5000 characters."""
 
 
 def tutor_system(level: str, mode: str) -> str:

@@ -71,13 +71,32 @@ async def ask(
     if not question:
         raise HTTPException(400, "Empty question")
     # Models drift into Malay unless the language rule sits right next to the question.
-    lang_rule = f"Reply in {language}." if language else "Reply in the same language I used in my message above."
+    if language:
+        lang_rule = f"Reply in {language}."
+    elif action in ACTIONS:  # button instructions are in English, so anchor on the conversation instead
+        lang_rule = "Reply in the same language as your previous answer and my earlier messages, not English unless we were using English."
+    else:
+        lang_rule = "Reply in the same language I used in my message above."
 
     try:
         answer, provider = providers.tutor(tutor_system(level, mode), hist, f"{question}\n\n({lang_rule})")
     except RuntimeError as e:
         raise HTTPException(502, str(e))
     return {"answer": answer, "provider": provider, "question": question if (img or aud) else "", "language": language}
+
+
+class DrawIn(BaseModel):
+    question: str = ""
+    answer: str
+
+
+@app.post("/api/draw")
+def draw(body: DrawIn):
+    try:
+        return {"svg": providers.draw(body.question[:2000], body.answer[:4000])}
+    except Exception as e:
+        logging.exception("draw failed")
+        raise HTTPException(502, str(e))
 
 
 class TTSIn(BaseModel):

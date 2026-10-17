@@ -150,6 +150,26 @@ def tutor(system: str, history: list[dict], question: str) -> tuple[str, str]:
     raise RuntimeError("All tutor providers failed. " + " | ".join(errors))
 
 
+def draw(question: str, answer: str) -> str:
+    """Ask Gemini for a small step-by-step SVG diagram (a few KB instead of a raster image)."""
+    from google.genai import types
+    from .prompts import DRAW_PROMPT
+
+    resp = gemini().models.generate_content(  # low thinking: ~15 s instead of ~37 s
+        model=GEMINI_MODEL, contents=DRAW_PROMPT.format(question=question, answer=answer),
+        config=types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_level="low")),
+    )
+    m = re.search(r"<svg\b.*?</svg>", resp.text or "", flags=re.S | re.I)
+    if not m:
+        raise RuntimeError("No SVG in model output")
+    svg = m.group(0)
+    # Defence in depth: the page also renders it via <img>, where scripts never run.
+    svg = re.sub(r"<(script|foreignObject)\b.*?</\1>", "", svg, flags=re.S | re.I)
+    svg = re.sub(r"\son\w+\s*=\s*(\"[^\"]*\"|'[^']*')", "", svg, flags=re.I)
+    svg = re.sub(r"\s(xlink:)?href\s*=\s*(\"(?!#)[^\"]*\"|'(?!#)[^']*')", "", svg, flags=re.I)
+    return svg
+
+
 def tts(text: str) -> bytes:
     """Gemini TTS, returns a WAV file (24 kHz 16-bit mono PCM)."""
     from google.genai import types
