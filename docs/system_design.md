@@ -49,14 +49,16 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 		- webm on Android Chrome
 		- mp4 on iPhone
 	- Detects level from chat text or tap chips
-2. Perceive (Gemini 3.8 Flash)
+2. Perceive (Gemini chain, then ILMU)
 	- Runs only when a photo or voice note is attached
 	- Turns the image or audio into clean question text and a detected language
-	- Replaces personal details found in the photo or voice with [REDACTED]
+	- Gemini replaces personal details found in the photo or voice with [REDACTED]
 	- Voice notes are first converted on the server to low bitrate mono MP3 with ffmpeg
 		- Gemini supports MP3 but not webm
+		- ILMU speech to text receives the same MP3
 	- Text only questions skip this step to save time
-3. Tutor (ILMU)
+	- If every Gemini model fails, ILMU speech to text handles voice and ILMU vision handles photos
+3. Tutor (ILMU, then Qwen, then Gemini chain)
 	- Answers in the student's language, including code switching
 	- Pitched to the level and the KSSR or KSSM syllabus
 	- Uses Sarawak examples such as padi, longhouses, the Rajang River, the Bakun dam, kek lapis and pepper farms
@@ -69,16 +71,16 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- The prompt for each action is written in English, so the server adds a language rule right next to the question
 		- Reply in the language of the detected input, or in the language of the previous answer and earlier messages
 		- Without it, replies drift back into English
-5. Draw (Gemini 3.8 Flash, thinking level low)
+5. Draw (Gemini chain at thinking level low, then ILMU)
 	- Triggered by the Lukis button, or automatically when the student's message contains gambar, lukis, rajah, diagram, draw or picture
 	- Writes one step by step SVG diagram with the real numbers and labels in the student's language
 		- Usually 4 to 6 KB, so it works even in Lite mode
-		- Takes about 15 seconds
+		- Takes about 15 seconds on Gemini and about 30 seconds on ILMU
 	- The server strips scripts, foreignObject, event handler attributes and external links
 	- The page shows the SVG through an img element, where scripts never run
 6. Output Shaper and speech
 	- Lite and Standard read aloud with the phone's own voice through speechSynthesis at zero data cost
-	- Full uses Gemini 3.8 Flash TTS
+	- Full uses Gemini TTS, with ILMU TTS returning MP3 if every Gemini TTS model fails
 	- Data meter shows KB uploaded plus downloaded for every answer and diagram
 
 
@@ -98,7 +100,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- Photos 1024px JPEG quality 0.7
 	- Voice 24 kbps
 	- Answers about 350 words
-	- Gemini 3.8 Flash TTS
+	- Gemini TTS, with ILMU TTS as fallback
 - Measured
 	- A typical Lite answer is about 600 bytes to 1.2 KB
 	- A 3 second voice note at 12 kbps is about 6 KB
@@ -180,14 +182,27 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 
 ## Model routing
 
-- Perceive and draw use Gemini 3.8 Flash
+- Every Gemini call tries models in order and the first answer wins
+	- Used for perceive on photos and voice, tutor fallback and Lukis diagrams
+	- Order is Gemini 3.8 Flash, then Gemini 3.5 Flash, then Gemini 3.1 Flash Lite
 	- Natively multimodal, reads image or audio and text in one call
+	- Gemini TTS tries Gemini 3.8 Flash TTS, then Gemini 3.1 Flash TTS Preview
+- If every Gemini model fails, ILMU takes over
+	- Voice uses ILMU speech to text
+	- Photos use ILMU vision
+	- Listen in Full mode uses ILMU text to speech, returning MP3
+	- Lukis uses the ILMU text model
+- Measured in testing
+	- ILMU speech to text about 1.3 seconds
+	- ILMU vision about 1.4 seconds
+	- ILMU text to speech about 1.8 seconds
+	- ILMU drawing about 30 seconds
 - Tutor uses ILMU through an OpenAI compatible API
 	- Malaysian LLM by YTL AI Labs, tuned for Malaysian languages
-- Tutor fallback order ILMU, then Qwen, then Gemini
+- Tutor fallback order ILMU, then Qwen, then Gemini chain
 	- Qwen 27B is served by SovernStack through its own custom API, not OpenAI compatible
 	- Qwen is a strong multilingual backup
-	- Gemini is the last resort
+	- Gemini chain is the last resort
 	- Order is configurable with `TUTOR_ORDER`, default `ilmu,qwen,gemini`
 	- Providers without keys are skipped
 
@@ -200,7 +215,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- Fields `text`, optional `image` file, optional `audio` file, `level`, `mode` (lite, standard, full), `action` (simpler, local, quiz), `history` JSON of the last 8 turns
 	- Returns JSON with `answer`, `provider`, `language` and `question` (the transcribed question, only for photo or voice input)
 - `POST /api/draw` JSON with `question` and `answer`, returns JSON with `svg`
-- `POST /api/tts` returns WAV audio from Gemini 3.8 Flash TTS, used only in Full mode
+- `POST /api/tts` returns WAV audio from Gemini TTS, or MP3 from ILMU TTS when every Gemini TTS model fails, used only in Full mode
 - Errors
 	- 413 for files over 4 MB
 	- 429 when the rate limit is hit
@@ -212,11 +227,16 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - Gemini
 	- `GEMINI_API_KEY`
 	- `GEMINI_MODEL`
+	- `GEMINI_FALLBACK_MODELS`
 	- `GEMINI_TTS_MODEL`
+	- `GEMINI_TTS_FALLBACK_MODELS`
 - ILMU
 	- `ILMU_BASE_URL`
 	- `ILMU_API_KEY`
 	- `ILMU_MODEL`
+	- `ILMU_ASR_MODEL`
+	- `ILMU_VISION_MODEL`
+	- `ILMU_TTS_MODEL`
 - Qwen
 	- `QWEN_URL`
 	- `QWEN_USER_ID`
@@ -224,6 +244,17 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - Routing
 	- `TUTOR_ORDER`
 	- `MAX_TOKENS` caps tutor output, default 1500
+- Model defaults, fallback lists are comma separated
+
+```
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_FALLBACK_MODELS=gemini-3.5-flash,gemini-3.1-flash-lite
+GEMINI_TTS_MODEL=gemini-3.8-flash-tts
+GEMINI_TTS_FALLBACK_MODELS=gemini-3.1-flash-tts-preview
+ILMU_ASR_MODEL=ilmu-asr-v4.2
+ILMU_VISION_MODEL=ilmu-vision-v1.3
+ILMU_TTS_MODEL=ilmu-tts-v2.1
+```
 
 
 ## Deploy
@@ -241,10 +272,13 @@ gcloud run deploy ajarlok \
 
 - Inputs are processed by third party model providers (Google, YTL AI Labs ILMU, SovernStack)
 	- Redaction lowers the risk but is pattern based and cannot catch every detail, such as a name in a photo
+	- ILMU speech to text only transcribes voice, so the perceive prompt does not redact personal details in a voice note on that path
+- Gemini free tier allows only 20 requests a day per model and returns high demand errors, which is why the fallback chain exists
+	- A paid Gemini key removes the daily cap
 	- A paid Gemini key keeps inputs out of Google product improvement
 - Gemini supports MP3 but not webm, so voice notes depend on the ffmpeg conversion working
 - A Malay speechSynthesis voice is not on every phone, so the app falls back to an English voice or Full mode
-- ILMU endpoint must follow the OpenAI compatible format, Qwen must match the SovernStack API
+- ILMU endpoints must follow the OpenAI compatible format for speech to text, vision and speech, and Qwen must match the SovernStack API
 - Diagrams come from a model and can contain mistakes, the student can ask for another
 - The in memory rate limit resets on restart and is per instance
 
@@ -256,4 +290,3 @@ gcloud run deploy ajarlok \
 - Two voice audio recap like NotebookLM
 - Offline PWA shell
 - Better Sarawak Malay and Iban support
-- ILMU vision and TTS models as Malaysian alternatives
