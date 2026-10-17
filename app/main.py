@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
@@ -21,6 +22,8 @@ STATIC = Path(__file__).parent / "static"
 MAX_UPLOAD = 4 * 1024 * 1024
 
 app = FastAPI(title="AjarLok")
+# Compress the page, answers and SVG diagrams. Text shrinks ~3x, which matters more than anything on 2G.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Same patterns as scrub() in the page, for clients that skip the browser.
 PII = [

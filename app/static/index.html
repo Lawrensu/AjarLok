@@ -89,6 +89,7 @@ const S = {
   think:["Sedang fikir...","Thinking..."], err:["Maaf, ada masalah. Cuba lagi.","Sorry, something went wrong. Try again."],
   voice:["Rakaman suara","Voice note"], photo:["Gambar","Photo"], up:["naik","up"], down:["turun","down"],
   mic:["Mikrofon tidak dapat dibuka.","Microphone not available."], uni:["Universiti","University"],
+  appLoad:["Aplikasi dimuat:","App loaded:"],
   draw:["Lukis","Draw"], drawing:["Sedang melukis...","Drawing..."], drawErr:["Tak dapat lukis. Cuba lagi.","Could not draw. Try again."],
 };
 const t = k => S[k][MS ? 0 : 1], t2 = k => S[k][MS ? 1 : 0];
@@ -112,7 +113,7 @@ async function detectMode(){
     return "full";
   }
   try { // no Network Information API (iOS): time a tiny request
-    const t = performance.now(); await fetch("/api/ping", {cache:"no-store"});
+    const t = performance.now(); await metered("/api/ping", {cache:"no-store"});
     const rtt = performance.now() - t;
     return rtt > 800 ? "lite" : rtt > 300 ? "standard" : "full";
   } catch { return "lite"; }
@@ -175,9 +176,8 @@ async function speak(text, language, btn, msg, labels){
   if (mode() === "full") {
     try {
       btn.disabled = true;
-      const r = await fetch("/api/tts", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text:plain})});
+      const {r, data:blob} = await metered("/api/tts", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text:plain})}, "blob");
       if (!r.ok) throw 0;
-      const blob = await r.blob(); addBytes(blob.size);
       const player = document.createElement("audio");
       player.className = "voice"; player.controls = true; player.src = URL.createObjectURL(blob);
       msg.querySelector(".acts").before(player); player.play(); return;
@@ -192,13 +192,29 @@ async function speak(text, language, btn, msg, labels){
 }
 function addBytes(n){ totalBytes += n; $("data").textContent = kb(totalBytes); }
 
+// ---- Data meter: counts what actually crosses the network, not just the content ----
+// Up = the exact request body (history and form fields included) + typical request headers.
+// Down = the browser's own count from Resource Timing (headers + body), falling back to the body size.
+const REQ_HEADERS = 450;
+try { performance.setResourceTimingBufferSize(1000); } catch {}
+async function bodyBytes(body){ if (!body) return 0; try { return (await new Response(body).arrayBuffer()).byteLength; } catch { return 0; } }
+async function metered(path, opts={}, as="text"){
+  const up = REQ_HEADERS + await bodyBytes(opts.body);
+  const r = await fetch(path, opts);
+  const data = as === "blob" ? await r.blob() : await r.text();
+  await new Promise(res => setTimeout(res, 0));  // let the timing entry land
+  const entry = performance.getEntriesByName(new URL(path, location.href).href).at(-1);
+  const down = entry?.transferSize || (as === "blob" ? data.size : new Blob([data]).size) + 300;
+  addBytes(up + down);
+  return {r, data, up, down};
+}
+
 // ---- Diagrams: Gemini writes a small SVG (a few KB), shown via <img> so no script inside it can run ----
 async function draw(question, answer, msg, btn){
   if (btn) btn.disabled = true;
   const box = document.createElement("div"); box.className = "meta"; box.textContent = t("drawing"); msg.append(box);
   try {
-    const r = await fetch("/api/draw", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({question, answer})});
-    const raw = await r.text(); addBytes(new Blob([raw]).size);
+    const {r, data:raw} = await metered("/api/draw", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({question, answer})});
     const d = JSON.parse(raw); if (!r.ok) throw new Error(d.detail || r.status);
     const img = new Image(); img.className = "diagram"; img.alt = t("draw");
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(d.svg);
@@ -223,10 +239,9 @@ async function ask(action=""){
   const lv = detectLevel(text); if (lv) setLevel(lv);
   const fd = new FormData(), m = mode();
   fd.append("text", text); fd.append("level", level); fd.append("mode", m); fd.append("action", action);
-  fd.append("history", JSON.stringify(history.slice(-8)));
-  let up = new Blob([text]).size;
-  if (image) { fd.append("image", image, "photo.jpg"); up += image.size; }
-  if (audio) { fd.append("audio", audio, "voice." + (audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm")); up += audio.size; }
+  fd.append("history", JSON.stringify(history.slice(m === "lite" ? -4 : -8)));  // Lite re-sends less of the chat
+  if (image) fd.append("image", image, "photo.jpg");
+  if (audio) fd.append("audio", audio, "voice." + (audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm"));
 
   const labels = {simpler:t("simpler"), local:t("local"), quiz:t("quiz")};
   // The student's own voice note stays on the phone, so replaying it costs no data
@@ -235,9 +250,7 @@ async function ask(action=""){
   const wait = add("", t("think"));
   $("send").disabled = true;
   try {
-    const r = await fetch("/api/ask", {method:"POST", body:fd});
-    const raw = await r.text(), down = new Blob([raw]).size;
-    addBytes(up + down);
+    const {r, data:raw, up, down} = await metered("/api/ask", {method:"POST", body:fd});
     const d = JSON.parse(raw);
     if (!r.ok) throw new Error(d.detail || r.status);
     history.push({role:"user", content: d.question || text || labels[action]}, {role:"assistant", content:d.answer});
@@ -296,6 +309,12 @@ $("text").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDe
 $("jimat").onclick = () => { jimat = !jimat; store.set("jimat", jimat?"1":"0"); renderJimat(); };
 
 renderText(); renderLevels(); renderJimat();
+// The app itself counts too: the page's own download (0 if the phone already had it cached)
+addEventListener("load", () => setTimeout(() => {
+  const nav = performance.getEntriesByType("navigation")[0], n = nav ? nav.transferSize : 0;
+  addBytes(n); $("data").title = `${t("appLoad")} ${kb(n)}`;
+  const h = $("hello"); if (h) h.insertAdjacentHTML("beforeend", `<br><small>${t("appLoad")} ${kb(n)}</small>`);
+}, 0));
 detectMode().then(m => { netMode = m; renderJimat(); });
 navigator.connection?.addEventListener?.("change", () => detectMode().then(m => { netMode = m; renderJimat(); }));
 </script>

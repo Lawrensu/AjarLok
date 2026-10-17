@@ -17,7 +17,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - Constraints
 	- Built and deployed in 90 minutes
 	- No accounts and no database, history and level live in the browser only
-	- One page under 20 KB (about 18 KB measured) with no frontend framework
+	- One page of about 20 KB with no frontend framework, sent gzip compressed so it downloads in about 8 KB
 
 
 ## Repository structure
@@ -81,7 +81,11 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 6. Output Shaper and speech
 	- Lite and Standard read aloud with the phone's own voice through speechSynthesis at zero data cost
 	- Full uses Gemini TTS, with ILMU TTS returning MP3 if every Gemini TTS model fails
-	- Data meter shows KB uploaded plus downloaded for every answer and diagram
+	- Data meter counts real network bytes for every request, including diagrams, speech and the latency probe
+		- Upload is the exact request body, chat history included, plus typical request headers
+		- Download is the browser's own Resource Timing count, headers included
+		- The page download itself is counted once and shown on the welcome screen
+	- All text responses are gzip compressed, page about 60 percent smaller and answers about 35 percent smaller
 
 
 ## Bandwidth tiers
@@ -175,7 +179,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - Abuse limits
 	- Per IP rate limit of 30 requests a minute on the API, `/api/ping` excluded, kept in memory
 	- Uploads capped at 4 MB
-	- Only the last 8 turns of history are sent
+	- Only the last 8 turns of history are sent, 4 in Lite mode
 - Answers are HTML escaped before display
 - Nothing is stored on a server, there is no database
 
@@ -212,7 +216,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - `GET /` serves the page
 - `GET /api/ping` latency probe
 - `POST /api/ask` multipart form
-	- Fields `text`, optional `image` file, optional `audio` file, `level`, `mode` (lite, standard, full), `action` (simpler, local, quiz), `history` JSON of the last 8 turns
+	- Fields `text`, optional `image` file, optional `audio` file, `level`, `mode` (lite, standard, full), `action` (simpler, local, quiz), `history` JSON of the last 8 turns (4 in Lite)
 	- Returns JSON with `answer`, `provider`, `language` and `question` (the transcribed question, only for photo or voice input)
 - `POST /api/draw` JSON with `question` and `answer`, returns JSON with `svg`
 - `POST /api/tts` returns WAV audio from Gemini TTS, or MP3 from ILMU TTS when every Gemini TTS model fails, used only in Full mode
