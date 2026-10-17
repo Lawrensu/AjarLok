@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from . import providers  # noqa: E402
-from .prompts import ACTIONS, tutor_system  # noqa: E402
+from .prompts import ACTIONS, DRAW_NOTE, WANTS_DRAWING, tutor_system  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 STATIC = Path(__file__).parent / "static"
@@ -102,6 +102,8 @@ async def ask(
             logging.exception("perceive failed")
             if not question:
                 raise HTTPException(502, f"Could not read the photo/voice: {e}")
+    # Checked on the final question so voice notes and photos ("tunjuk guna gambar") trigger a diagram too
+    wants_draw = not action and bool(re.search(WANTS_DRAWING, f"{text} {question}", re.I))
     if action in ACTIONS:
         question = ACTIONS[action] + (f"\n\n{question}" if question else "")
     if not question:
@@ -113,12 +115,15 @@ async def ask(
         lang_rule = "Reply in the same language as your previous answer and my earlier messages, not English unless we were using English."
     else:
         lang_rule = "Reply in the same language I used in my message above."
+    if wants_draw:
+        lang_rule += " " + DRAW_NOTE
 
     try:
         answer, provider = providers.tutor(tutor_system(level, mode), hist, f"{question}\n\n({lang_rule})")
     except RuntimeError as e:
         raise HTTPException(502, str(e))
-    return {"answer": answer, "provider": provider, "question": question if (img or aud) else "", "language": language}
+    return {"answer": answer, "provider": provider, "question": question if (img or aud) else "", "language": language,
+            "draw": wants_draw}
 
 
 class DrawIn(BaseModel):

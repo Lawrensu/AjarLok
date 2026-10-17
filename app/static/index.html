@@ -91,7 +91,6 @@ const S = {
   mic:["Mikrofon tidak dapat dibuka.","Microphone not available."], uni:["Universiti","University"],
   draw:["Lukis","Draw"], drawing:["Sedang melukis...","Drawing..."], drawErr:["Tak dapat lukis. Cuba lagi.","Could not draw. Try again."],
 };
-const WANTS_DRAWING = /gambar|lukis|rajah|diagram|draw|picture|visual|sketch|图/i;
 const t = k => S[k][MS ? 0 : 1], t2 = k => S[k][MS ? 1 : 0];
 const bigBtn = (icon, k) => `<span>${icon}</span>${t(k)}<small>${t2(k)}</small>`;
 function renderText(){
@@ -251,7 +250,7 @@ async function ask(action=""){
      ["💡 " + L("simpler"), () => ask("simpler")], ["🌾 " + L("local"), () => ask("local")], ["❓ " + L("quiz"), () => ask("quiz")]]
       .forEach(([t, fn]) => { const b = document.createElement("button"); b.textContent = t; b.onclick = () => fn(b); acts.append(b); });
     wait.append(acts);
-    if (WANTS_DRAWING.test(text)) draw(q, d.answer, wait, acts.children[1]);
+    if (d.draw) draw(q, d.answer, wait, acts.children[1]);  // server decides, so voice notes and photos count too
   } catch (e) {
     wait.innerHTML = t("err") + "<div class='meta'>" + esc(String(e.message||e)) + "</div>";
   } finally { $("send").disabled = false; }

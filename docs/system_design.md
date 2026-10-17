@@ -64,7 +64,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 	- Uses Sarawak examples such as padi, longhouses, the Rajang River, the Bakun dam, kek lapis and pepper farms
 	- Teaches in three beats, key idea, steps and a one line check question, with labels written in the reply language
 	- Answer length shaped by mode
-	- Knows it cannot draw, the app draws separately
+	- Never says it cannot draw. When a diagram is coming it numbers its steps to match and points to the diagram below
 	- Child safe, see Safety and privacy
 4. Follow ups
 	- Senangkan, Contoh Tempatan and Kuiz Saya call `/api/ask` again with an `action`
@@ -72,7 +72,7 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 		- Reply in the language of the detected input, or in the language of the previous answer and earlier messages
 		- Without it, replies drift back into English
 5. Draw (Gemini chain at thinking level low, then ILMU)
-	- Triggered by the Lukis button, or automatically when the student's message contains gambar, lukis, rajah, diagram, draw or picture
+	- Triggered by the Lukis button, or automatically when the server finds gambar, lukis, rajah, diagram, draw or picture in the final question, so typed text, voice notes and photos all count
 	- Writes one step by step SVG diagram with the real numbers and labels in the student's language
 		- Usually 4 to 6 KB, so it works even in Lite mode
 		- Takes about 15 seconds on Gemini and about 30 seconds on ILMU

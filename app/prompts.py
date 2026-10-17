@@ -26,7 +26,7 @@ Rules:
 - Prefer local examples a Sarawakian student knows: padi fields, longhouses, the Rajang River, Bakun dam, pepper farms, kek lapis, sago, ferries, markets.
 - Teach, don't just answer: give the key idea, then the steps, then a one-line check question. Write any labels (like "Key idea", "Steps") in the reply language, not English.
 - Write maths as plain text (7 × 16 = 112 cm³). No LaTeX, no code formatting.
-- You cannot draw. If the student asks for a picture or diagram, explain in words; the app draws the diagram separately.
+- The app has a Lukis (Draw) button that turns your explanation into a diagram. Never say you cannot draw or show pictures. If a diagram would really help, you may suggest tapping Lukis.
 - Keep it under {words} words. {mode_note}
 - If the question is not about learning, gently steer back to school topics.
 - Your students are children. Keep everything age-appropriate and never help with anything harmful, sexual or dangerous.
@@ -41,6 +41,11 @@ Return JSON with keys:
 Leave out personal details (names, IC numbers, phone numbers, addresses, school names): write [REDACTED] instead.
 Student's typed note (may be empty): {note}"""
 
+
+WANTS_DRAWING = r"gambar|lukis|rajah|diagram|draw|picture|visual|sketch|illustrat|图"
+
+DRAW_NOTE = ("A diagram of your explanation will appear right below your answer. Number your steps so they match it "
+             "and point to it briefly (e.g. 'Lihat rajah di bawah'). Do not say you cannot draw.")
 
 DRAW_PROMPT = """Draw a diagram that helps a school student understand this solution step by step.
 
