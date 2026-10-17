@@ -2,11 +2,18 @@
 
 Snap it, say it or type it. A STEM tutor that speaks your language and barely touches your data plan.
 
-Live demo at <CLOUD_RUN_URL>
+Live demo at [ajarlok-266045620451.asia-southeast1.run.app](https://ajarlok-266045620451.asia-southeast1.run.app/)
 
-Built in 90 minutes by Stuff (Lawrence Lian Anak Matius Ding, Cyndia Ya Aii Teo, Noah Ting Ding Ka, Nor Syuhada Binti Hamdan) at the IT Week mini hackathon, organised by UNIMAS FCSIT and co organised by IEEE UNIMAS Student Branch, Google Antigravity workshop.
+Built in 90 minutes by team Stuff at the IT Week mini hackathon, organised by UNIMAS FCSIT and co organised by IEEE UNIMAS Student Branch, Google Antigravity workshop.
 
 Problem statement "Localized and Inclusive STEM Learning Agent"
+
+## Team Stuff
+
+- Lawrence Lian Anak Matius Ding (team leader)
+- Noah Ting Ding Ka
+- Cyndia Ya Aii Teo
+- Nor Syuhada Binti Hamdan
 
 
 ## The problem
@@ -83,4 +90,4 @@ AjarLok is a STEM and IT tutor built for the student AI forgot. Picture a Form 2
 
 ### Deployed Project Link
 
-<CLOUD_RUN_URL>
+[ajarlok-266045620451.asia-southeast1.run.app](https://ajarlok-266045620451.asia-southeast1.run.app/)
