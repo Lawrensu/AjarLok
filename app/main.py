@@ -142,7 +142,8 @@ class TTSIn(BaseModel):
 @app.post("/api/tts")
 def tts(body: TTSIn):
     try:
-        return Response(providers.tts(body.text[:2000]), media_type="audio/wav")
+        audio, mime = providers.tts(body.text[:2000])
+        return Response(audio, media_type=mime)
     except Exception as e:
         logging.exception("tts failed")
         raise HTTPException(502, str(e))
