@@ -39,6 +39,32 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - FastAPI serves both the page and the API
 - Voice conversion uses the ffmpeg binary bundled with the imageio ffmpeg Python package, so the image needs no system ffmpeg
 
+### Why Render
+
+We are students, so hosting had to cost nothing and work without a credit card.
+
+- Render, chosen
+	- Free web service with no card, about 750 instance hours a month, enough to run one service all month
+	- Runs our Dockerfile as is, so the move needed no code changes
+	- No request time limit, which matters because Lukis diagrams take 15 to 30 seconds
+	- One instance, so the in memory rate limit keeps a single shared count
+	- Singapore region and automatic deploys from GitHub
+	- Trade off, it sleeps after about 15 minutes idle and the next visit takes 30 to 60 seconds to wake it
+- Google Cloud Run, used for the hackathon
+	- Needs a billing account with a card once the hackathon credits end
+	- Its free tier would likely cover our traffic, but we could not rely on a card
+- Vercel
+	- Free with no slow wake up, but runs Python as serverless functions instead of Docker
+	- Needs a new entry file and config, and free functions have a maximum run time our slowest calls may exceed
+	- Each serverless copy keeps its own rate limit count, so the limit is weaker
+- Netlify
+	- Functions run JavaScript, TypeScript or Go, not Python, so the whole backend would need rewriting
+	- Short function time limits would cut off diagram calls
+- Hugging Face Spaces
+	- Free Docker hosting, but needs a separate repo whose README header clashes with ours
+
+Hosting now costs nothing. The only possible running costs are the model APIs, each billed by its own provider.
+
 
 ## Pipeline
 

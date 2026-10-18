@@ -4,7 +4,7 @@ Snap it, say it or type it. A STEM tutor that speaks your language and barely to
 
 Live demo at RENDER_URL_PLACEHOLDER
 
-Hosted on Render's free tier, which sleeps after about 15 minutes idle, so the first load can take up to a minute. The original hackathon submission ran on Google Cloud Run in Singapore.
+Hosted on Render's free tier, which sleeps after about 15 minutes idle, so the first load can take up to a minute. The original hackathon submission ran on Google Cloud Run in Singapore. We moved to Render because it is free without a credit card and runs our Docker image unchanged, see [Why Render](docs/system_design.md#why-render).
 
 Built in 90 minutes by team Stuff at the IT Week mini hackathon, organised by UNIMAS FCSIT and co organised by IEEE UNIMAS Student Branch, Google Antigravity workshop.
 
