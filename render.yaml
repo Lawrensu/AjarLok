@@ -1,0 +1,27 @@
+# Render Blueprint: free web service in Singapore, built from the Dockerfile, redeployed on every push to main.
+# Secrets are marked sync: false, so Render asks for them once when the Blueprint is created.
+services:
+  - type: web
+    name: ajarlok
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/ping
+    autoDeploy: true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ILMU_BASE_URL
+        value: https://api.ilmu.ai/v1
+      - key: ILMU_API_KEY
+        sync: false
+      - key: ILMU_MODEL
+        value: ilmu-v3.1
+      - key: QWEN_URL
+        value: https://api.sovernstack.com/llm/chat
+      - key: QWEN_USER_ID
+        sync: false
+      - key: QWEN_MODEL
+        value: Qwen 27B
