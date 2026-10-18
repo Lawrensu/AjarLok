@@ -26,12 +26,16 @@ This document describes the architecture and behaviour of AjarLok, a low bandwid
 - `app/providers.py` model calls, fallback, SVG diagrams and TTS
 - `app/prompts.py` tutor, perceive and draw prompts
 - `app/static/index.html` UI with inline CSS and JS
-- `requirements.txt`, `Dockerfile`, `.env.example`
+- `requirements.txt`, `Dockerfile`, `render.yaml`, `.env.example`
 
 
 ## Deployment
 
-- Single Cloud Run service in asia southeast1 (Singapore, closest to Sarawak)
+- Single Render web service on the free plan in the Singapore region, closest to Sarawak
+- Built from the same Dockerfile and defined in `render.yaml`, a Render Blueprint
+- Render redeploys automatically on every push to main
+- Health check path is `/api/ping`
+- The original hackathon submission ran on Google Cloud Run in asia southeast1, moved to Render when the hackathon credits ended
 - FastAPI serves both the page and the API
 - Voice conversion uses the ffmpeg binary bundled with the imageio ffmpeg Python package, so the image needs no system ffmpeg
 
@@ -263,12 +267,18 @@ ILMU_TTS_MODEL=ilmu-tts-v2.1
 
 ## Deploy
 
+1. Open the Render dashboard and choose New, then Blueprint
+2. Connect the Stuff Unimas GitHub repo by Lawrensu and Render reads the Blueprint file `render.yaml`
+3. Enter the three secrets once, `GEMINI_API_KEY`, `ILMU_API_KEY` and `QWEN_USER_ID`
+4. Click Apply
+5. Later deploys happen on git push to main
+
+The non secret values are set in `render.yaml`.
+
+Optional alternative on Google Cloud Run, which needs a billing account
+
 ```bash
-gcloud run deploy ajarlok \
-  --source . \
-  --region asia-southeast1 \
-  --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=...,ILMU_BASE_URL=...,ILMU_API_KEY=...,ILMU_MODEL=...,QWEN_URL=...,QWEN_USER_ID=...,QWEN_MODEL=...
+gcloud run deploy ajarlok   --source .   --region asia-southeast1   --allow-unauthenticated   --set-env-vars GEMINI_API_KEY=...,ILMU_BASE_URL=...,ILMU_API_KEY=...,ILMU_MODEL=...,QWEN_URL=...,QWEN_USER_ID=...,QWEN_MODEL=...
 ```
 
 
@@ -285,6 +295,8 @@ gcloud run deploy ajarlok \
 - ILMU endpoints must follow the OpenAI compatible format for speech to text, vision and speech, and Qwen must match the SovernStack API
 - Diagrams come from a model and can contain mistakes, the student can ask for another
 - The in memory rate limit resets on restart and is per instance
+- The free Render instance sleeps after about 15 minutes with no traffic and the first request then takes about 30 to 60 seconds
+  - On iPhones the latency probe can then pick Lite mode on the first load
 
 
 ## Roadmap

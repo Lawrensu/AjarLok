@@ -2,7 +2,9 @@
 
 Snap it, say it or type it. A STEM tutor that speaks your language and barely touches your data plan.
 
-Live demo at [ajarlok-266045620451.asia-southeast1.run.app](https://ajarlok-266045620451.asia-southeast1.run.app/)
+Live demo at RENDER_URL_PLACEHOLDER
+
+Hosted on Render's free tier, which sleeps after about 15 minutes idle, so the first load can take up to a minute. The original hackathon submission ran on Google Cloud Run in Singapore.
 
 Built in 90 minutes by team Stuff at the IT Week mini hackathon, organised by UNIMAS FCSIT and co organised by IEEE UNIMAS Student Branch, Google Antigravity workshop.
 
@@ -18,7 +20,7 @@ Problem statement "Localized and Inclusive STEM Learning Agent"
 
 ## The problem
 
-A Form 2 student in a longhouse up the Rajang has one bar of signal, RM10 of prepaid data, a hand me down phone and a Science textbook that is not in the language spoken at home.
+Imagine, form 2 student in a longhouse up the Rajang has one bar of signal, RM10 of prepaid data, a hand me down phone and a Science textbook that is not in the language spoken at home.
 
 Every AI tutor out there assumes fast WiFi, a new phone, fluent English and a login. For this student, AI tutoring is a loading spinner.
 
@@ -77,7 +79,7 @@ AjarLok
 
 ### Brief Description
 
-AjarLok is a STEM and IT tutor built for the student AI forgot. Picture a Form 2 student in a Sarawak longhouse with one bar of signal, RM10 of prepaid data and a textbook that is not in their home language. With AjarLok they snap a photo of the question, say it out loud or type it, in Bahasa Melayu, Sarawak Malay, English, Mandarin or a mix. AjarLok answers in the same language, pitched at their level from Darjah 1 to university, using things they know like kek lapis, padi fields and the Rajang River. It runs in any phone browser with no account and no install. The whole app downloads in about 8 KB, a typical answer costs less than 1 KB and answers are read aloud with the phone's own voice at zero data cost. Gemini 3.8 Flash understands photos and voice, ILMU, the Malaysian language model by YTL AI Labs, writes the lesson, and Qwen 27B and Gemini stand by as fallbacks. Hosted on Google Cloud Run in Singapore, close to Sarawak.
+AjarLok is a STEM and IT tutor built for the student AI forgot. Picture a Form 2 student in a Sarawak longhouse with one bar of signal, RM10 of prepaid data and a textbook that is not in their home language. With AjarLok they snap a photo of the question, say it out loud or type it, in Bahasa Melayu, Sarawak Malay, English, Mandarin or a mix. AjarLok answers in the same language, pitched at their level from Darjah 1 to university, using things they know like kek lapis, padi fields and the Rajang River. It runs in any phone browser with no account and no install. The whole app downloads in about 8 KB, a typical answer costs less than 1 KB and answers are read aloud with the phone's own voice at zero data cost. Gemini 3.8 Flash understands photos and voice, ILMU, the Malaysian language model by YTL AI Labs, writes the lesson, and Qwen 27B and Gemini stand by as fallbacks. Hosted in Singapore, close to Sarawak.
 
 ### Uniqueness
 
@@ -90,4 +92,4 @@ AjarLok is a STEM and IT tutor built for the student AI forgot. Picture a Form 2
 
 ### Deployed Project Link
 
-[ajarlok-266045620451.asia-southeast1.run.app](https://ajarlok-266045620451.asia-southeast1.run.app/)
+RENDER_URL_PLACEHOLDER
