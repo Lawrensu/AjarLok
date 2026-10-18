@@ -2,7 +2,8 @@
 
 Snap it, say it or type it. A STEM tutor that speaks your language and barely touches your data plan.
 
-Live demo at RENDER_URL_PLACEHOLDER
+Live demo at [AjarLok](https://ajarlok.onrender.com/) 
+- Note that it might be slow to wake up after about 15 minutes idle, so the first load can take up to a minute.
 
 Hosted on Render's free tier, which sleeps after about 15 minutes idle, so the first load can take up to a minute. The original hackathon submission ran on Google Cloud Run in Singapore. We moved to Render because it is free without a credit card and runs our Docker image unchanged, see [Why Render](docs/system_design.md#why-render).
 
@@ -92,4 +93,4 @@ AjarLok is a STEM and IT tutor built for the student AI forgot. Picture a Form 2
 
 ### Deployed Project Link
 
-RENDER_URL_PLACEHOLDER
+https://ajarlok.onrender.com/
